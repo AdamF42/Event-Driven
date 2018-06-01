@@ -16,7 +16,9 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-    bsp.cpp
+    bsp.cpp \
+    terminal_io.cpp
 
 HEADERS += \
-    bsp.h
+    bsp.h \
+    terminal_io.h

@@ -26,6 +26,9 @@
 // e-mail:                  info@quantum-leaps.com
 //////////////////////////////////////////////////////////////////////////////
 #include "bsp.h"
+#include "terminal_io.h"
+
+
 
 enum BombSignals {                             // all signals for the Bomb FSM
     UP_SIG,
@@ -159,9 +162,9 @@ int main() {
     static TickEvt tick_evt;
     tick_evt.sig = TICK_SIG;
     tick_evt.fine_time = 0;
-    for (;;) {                                                   // event loop
+    while (true){                                                   // event loop
 
-        sleep(0.1);                                            // 100 ms delay
+        sleep(0.5);                                            // 100 ms delay
 
         if (++tick_evt.fine_time == 10) {
             tick_evt.fine_time = 0;
@@ -172,16 +175,16 @@ int main() {
 
         l_bomb.dispatch(&tick_evt);                     // dispatch TICK event
 
-//        if (_kbhit()) {
+        if (kbhit()) {
 //        if (_Exit(0)) {
-        while (true){
+//        while (true){
             static Event const up_evt   = { UP_SIG   };
             static Event const down_evt = { DOWN_SIG };
             static Event const arm_evt  = { ARM_SIG  };
             Event const *e = (Event *)0;
 
-//            switch (_getch()) {
-            switch (getchar()) {
+            switch (getch()) {
+//            switch (getchar()) {
                 case 'u': {                                        // UP event
                     cout << endl << "UP  : ";
                     e = &up_evt;                      // generate the UP event
