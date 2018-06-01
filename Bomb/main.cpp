@@ -26,6 +26,16 @@
 // e-mail:                  info@quantum-leaps.com
 //////////////////////////////////////////////////////////////////////////////
 #include "bsp.h"
+#include <stdio.h>
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <pthread.h>
+
+
+using namespace std;
+
 
 enum BombSignals {                             // all signals for the Bomb FSM
     UP_SIG,
@@ -133,17 +143,62 @@ void Bomb1::dispatch(Event const *e) {
     }
 }
 
+
+
 // Test harness --------------------------------------------------------------
-#include <stdio.h>
-#include <iostream>
-#include <stdlib.h>
-#include <unistd.h>
 
-//#include <conio.h>
-//#include <dos>
 
-using namespace std;
+class KeyboardIn {                                                  // the Bomb FSM
+public:
+    // Default constructor
+//    KeyboardIn(void);
+    KeyboardIn(uint8_t defuse) : m_defuse(defuse) {}
+    KeyboardIn();
+    void start(void);
+    bool is_pressed();
+    void init(void);
+    void dispatch(Event const *e);
+private:
+
+private:
+    bool m_status;
+    char m_input;
+    uint8_t m_defuse;
+};
+
+bool KeyboardIn::is_pressed(){
+
+    if (m_status == true){
+        m_status = false;
+        return m_status;
+    }
+    return false;
+}
+
+void KeyboardIn::init(void) {
+    m_status = false;
+    m_input = NULL;
+}
+
+void KeyboardIn::start(void){
+    while(true){
+        if (m_input == NULL){
+            m_input = getchar();
+            m_status = true;
+        }
+    }
+}
+
+
+
 static Bomb1 l_bomb(0x0D);  // time bomb FSM, the secret defuse code, 1101 bin
+static KeyboardIn l_keyboard(0);
+
+//wrapper function
+void *callMyFunction(void *object){
+    ((KeyboardIn *)object)->start();
+    return NULL;
+}
 
 //............................................................................
 int main() {
@@ -155,13 +210,23 @@ int main() {
          << "Press <Esc> to quit."       << endl;
 
     l_bomb.init();                              // take the initial transition
+    l_keyboard.init();
+
+    pthread_t thread;
+    int rc;
+    rc = pthread_create(&thread, NULL, &callMyFunction, &l_keyboard);
+    if (rc) {
+        cout << "Error:unable to create thread," << rc << endl;
+        exit(-1);
+    }
+
 
     static TickEvt tick_evt;
     tick_evt.sig = TICK_SIG;
     tick_evt.fine_time = 0;
-    for (;;) {                                                   // event loop
+    while(true) {                                                   // event loop
 
-        sleep(0.1);                                            // 100 ms delay
+        sleep(1);                                            // 100 ms delay
 
         if (++tick_evt.fine_time == 10) {
             tick_evt.fine_time = 0;
@@ -174,40 +239,39 @@ int main() {
 
 //        if (_kbhit()) {
 //        if (_Exit(0)) {
-        while (true){
+        if (l_keyboard.is_pressed()){
+//        while (true){
             static Event const up_evt   = { UP_SIG   };
             static Event const down_evt = { DOWN_SIG };
             static Event const arm_evt  = { ARM_SIG  };
             Event const *e = (Event *)0;
 
-//            switch (_getch()) {
             switch (getchar()) {
-                case 'u': {                                        // UP event
+                case 'u':                                         // UP event
                     cout << endl << "UP  : ";
                     e = &up_evt;                      // generate the UP event
                     break;
-                }
-                case 'd': {                                      // DOWN event
+                case 'd':                                      // DOWN event
                     cout << endl << "DOWN: ";
                     e = &down_evt;                  // generate the DOWN event
                     break;
-                }
-                case 'a': {                                       // ARM event
+                case 'a':                                        // ARM event
                     cout << endl << "ARM : ";
                     e = &arm_evt;                    // generate the ARM event
                     break;
-                }
-                case '\33': {                                     // <Esc> key
+                case '\33':                                      // <Esc> key
                     cout << endl << "ESC : Bye! Bye!" << flush << endl;
                     exit(0);
                     break;
-                }
             }
+
             if (e != (Event *)0) {                // keyboard event available?
                 l_bomb.dispatch(e);                      // dispatch the event
             }
         }
     }
+
+    pthread_exit(NULL);
 
     return 0;
 }
